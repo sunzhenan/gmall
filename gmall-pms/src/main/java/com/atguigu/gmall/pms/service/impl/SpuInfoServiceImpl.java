@@ -6,10 +6,11 @@ import com.atguigu.gmall.pms.entity.*;
 import com.atguigu.gmall.pms.feign.GmallSmsClient;
 import com.atguigu.gmall.pms.service.ProductAttrValueService;
 import com.atguigu.gmall.pms.service.SkuImagesService;
+import com.atguigu.gmall.pms.service.SpuInfoDescService;
 import com.atguigu.gmall.pms.vo.BaseAttrVO;
 import com.atguigu.gmall.pms.vo.SkuInfoVO;
-import com.atguigu.gmall.pms.vo.SkuSaleVO;
 import com.atguigu.gmall.pms.vo.SpuInfoVO;
+import com.atguigu.gmall.sms.VO.SkuSaleVO;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -30,6 +30,8 @@ import com.atguigu.core.bean.QueryCondition;
 
 import com.atguigu.gmall.pms.dao.SpuInfoDao;
 import com.atguigu.gmall.pms.service.SpuInfoService;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 
@@ -53,6 +55,9 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
 
     @Autowired
     private GmallSmsClient gmallSmsClient;
+
+    @Autowired
+    private SpuInfoDescService spuInfoDescService;
 
     @Override
     public PageVo queryPage(QueryCondition params) {
@@ -83,30 +88,19 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
     }
 
     @Override
+    @Transactional
     public void bigSave(SpuInfoVO spuInfoVO) {
-        spuInfoVO.setCreateTime(new Date());
-        spuInfoVO.setUpdateTime(spuInfoVO.getCreateTime());
-        this.save(spuInfoVO);
-        Long spuId = spuInfoVO.getId();
+        Long spuId = saveSpuInfo(spuInfoVO);
 
-        List<String> spuImages = spuInfoVO.getSpuImages();
-        if (!CollectionUtils.isEmpty(spuImages)){
-            SpuInfoDescEntity descEntity = new SpuInfoDescEntity();
-            descEntity.setSpuId(spuId);
-            descEntity.setDecript(StringUtils.join(spuImages, ","));
-            descDao.insert(descEntity);
-        }
+        spuInfoDescService.saveSpuInfoDesc(spuInfoVO, spuId);
 
-        List<BaseAttrVO> baseAttrs = spuInfoVO.getBaseAttrs();
-        if (!CollectionUtils.isEmpty(baseAttrs)){
-            List<ProductAttrValueEntity> attrValueEntities = baseAttrs.stream().map(baseAttrVO -> {
-                ProductAttrValueEntity attrValueEntity = baseAttrVO;
-                attrValueEntity.setSpuId(spuId);
-                return attrValueEntity;
-            }).collect(Collectors.toList());
-            this.attrValueService.saveBatch(attrValueEntities);
-        }
+        saveBaseAttrValue(spuInfoVO, spuId);
 
+        saveSkuAndSale(spuInfoVO, spuId);
+
+    }
+
+    private void saveSkuAndSale(SpuInfoVO spuInfoVO, Long spuId) {
         List<SkuInfoVO> skus = spuInfoVO.getSkus();
         if (CollectionUtils.isEmpty(skus)){
             return;
@@ -145,7 +139,28 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
             skuSaleVO.setSkuId(skuId);
             gmallSmsClient.saveSale(skuSaleVO);
         });
+    }
 
+    private void saveBaseAttrValue(SpuInfoVO spuInfoVO, Long spuId) {
+        List<BaseAttrVO> baseAttrs = spuInfoVO.getBaseAttrs();
+        if (!CollectionUtils.isEmpty(baseAttrs)){
+            List<ProductAttrValueEntity> attrValueEntities = baseAttrs.stream().map(baseAttrVO -> {
+                ProductAttrValueEntity attrValueEntity = baseAttrVO;
+                attrValueEntity.setSpuId(spuId);
+                return attrValueEntity;
+            }).collect(Collectors.toList());
+            this.attrValueService.saveBatch(attrValueEntities);
+        }
+    }
+
+
+
+    private Long saveSpuInfo(SpuInfoVO spuInfoVO) {
+        spuInfoVO.setCreateTime(new Date());
+        spuInfoVO.setUpdateTime(spuInfoVO.getCreateTime());
+        this.save(spuInfoVO);
+        Long spuId = spuInfoVO.getId();
+        return spuId;
     }
 
 }

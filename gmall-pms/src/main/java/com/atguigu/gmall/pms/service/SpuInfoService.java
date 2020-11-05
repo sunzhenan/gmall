@@ -21,5 +21,7 @@ public interface SpuInfoService extends IService<SpuInfoEntity> {
     PageVo querySpuPage(QueryCondition queryCondition, Long cid);
 
     void bigSave(SpuInfoVO spuInfoVO);
+
+
 }
 
