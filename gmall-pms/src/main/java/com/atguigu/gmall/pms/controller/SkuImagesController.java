@@ -45,6 +45,15 @@ public class SkuImagesController {
         return Resp.ok(page);
     }
 
+    @ApiOperation("获取imgs")
+    @GetMapping("/getImgs/{skuId}")
+    public Resp<String> querySkuImgsBySkuId(@PathVariable("skuId") Long skuId) {
+        String imgsUri = skuImagesService.querySkuImgsBySkuId(skuId);
+
+
+        return Resp.ok(imgsUri);
+    }
+
 
     /**
      * 信息

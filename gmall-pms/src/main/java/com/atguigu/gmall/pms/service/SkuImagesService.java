@@ -16,5 +16,8 @@ import com.atguigu.core.bean.QueryCondition;
 public interface SkuImagesService extends IService<SkuImagesEntity> {
 
     PageVo queryPage(QueryCondition params);
+
+    String querySkuImgsBySkuId(Long skuId);
+
 }
 
